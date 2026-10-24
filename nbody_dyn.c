@@ -45,10 +45,10 @@ void *worker(void *arg) {
         //считаем силы
         for (int i = 0; i < n; i++) mfx[i] = mfy[i] = mfz[i] = 0.0;
 
-        //Берём строки из общего счётчика, пока они не кончатся. atomic_fetch_add выдаёт каждому потоку уникальный номер
+        //берём строки из общего счётчика, пока они не кончатся. atomic_fetch_add выдаёт каждому потоку уникальный номер
         for (;;) {
-            int start = atomic_fetch_add(&next_row, chunk);
-            if (start >= n) break;
+            int start = atomic_fetch_add(&next_row, chunk); //возращает старое значение счётчика и прибавляет к нему chunk
+            if (start >= n) break; //строки кончились
             int end = start + chunk;
             if (end > n) end = n;
 
@@ -76,7 +76,7 @@ void *worker(void *arg) {
         /*все потоки уже вышли из этапа 1, счётчик больше никто не трогает.
            Сбрасываем его для следующего шага (барьер ниже гарантирует,
            что к началу следующего шага сброс виден всем). */
-        if (rank == 0) atomic_store(&next_row, 0);
+        if (rank == 0) atomic_store(&next_row, 0); //заново раздаём строки
 
         //суммируем силы и двигаем тела
         for (int i = lo; i < hi; i++) {
@@ -96,7 +96,7 @@ void *worker(void *arg) {
             }
         }
 
-        pthread_barrier_wait(&barrier);   /* все подвинули тела */
+        pthread_barrier_wait(&barrier);   //все подвинули тела
 
         if (rank == 0 && (step + 1) % stride == 0)
             write_row((step + 1) * dt);
